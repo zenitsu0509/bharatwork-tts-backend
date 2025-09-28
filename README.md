@@ -1,111 +1,243 @@
-# BharatWork TTS Backend
+# BharatWork TTS Backend (MMS TTS + Google Translate)
 
-A minimal FastAPI backend with a simple HTML frontend that uses Groq-hosted LLMs to translate English sentences into Hindi and render the Hindi text as speech.
+FastAPI backend that translates English to Hindi and synthesizes speech using Meta’s MMS TTS Hindi model. It also includes a production-friendly bulk audio generator that reuses “master” audio templates and only synthesizes variable parts (name, company, salary, phone) before merging them.
 
-## Features
+## Highlights
 
-- 🌐 REST API built with FastAPI (`/api/translate`) and a health probe (`/health`).
-- 🧠 Translation using a Groq chat completion model (default: `llama-3.1-8b-instant`).
-- 🔊 Text-to-speech via Groq's audio synthesis endpoint (default model: `playai-tts`, voice `Aaliyah-PlayAI`, WAV output).
-- 🎨 Lightweight HTML/CSS frontend served from `app/templates/index.html` with vanilla JS for interactions.
-- ✅ Automated tests with `pytest` verifying happy path, error propagation, and validation.
+- 🌐 FastAPI backend with CORS and HTML templates
+- 🧠 English → Hindi translation via Google Translate (deep-translator)
+- 🔊 TTS via MMS Hindi model: `facebook/mms-tts-hin` (Transformers + PyTorch)
+- � Bulk audio generation using reusable master templates + dynamic inserts
+- 💾 Windows-friendly in-memory audio processing (no temp-file locks)
+- 🧭 Frontend for bulk processing with CSV path input and record selection
 
-> **Note:** Groq's API surface is evolving. The defaults in this project assume the OpenAI-compatible endpoints exposed at `https://api.groq.com/openai/v1`. Update model names if your account uses different identifiers.
+## System overview
 
-## Getting started
+The system uses a modular audio approach:
 
-### 1. Clone & set up a virtual environment
+1) One-time master templates: Common phrases like “Hello”, “this is a call from BharatWork”, “The offered salary is”, etc. are generated once and reused.
+2) Dynamic parts: For each record (name, company, salary, phone), we translate and synthesize only those parts.
+3) Merge pipeline: We then merge [template → variable → template → …] into one final WAV per recipient with brief silences between segments.
 
-```bash
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+### Architecture (Mermaid)
+
+```mermaid
+flowchart LR
+    subgraph Frontend
+        A[bulk_path.html UI]
+        JS[bulk_path_script.js]
+    end
+
+    A -->|File path + selections| JS
+    JS -->|POST /api/process-csv-path| B
+    JS -->|POST /api/generate-bulk-audio-path| B
+
+    subgraph Backend (FastAPI)
+        B[main_bulk.py routes]
+        SVC[BulkAudioService]
+        TTS[GoogleTranslateMTTSService]
+        CFG[config.py Settings]
+    end
+
+    B --> SVC
+    B --> TTS
+    SVC -->|MMS model + tokenizer| MMS[(facebook/mms-tts-hin)]
+    SVC --> TSL[Audio templates + merging]
+    TTS -->|deep-translator| GT[Google Translate]
 ```
 
-### 2. Configure environment variables
+### Bulk Generation flow (Mermaid)
 
-Copy `.env.example` to `.env` and populate your Groq credentials:
+```mermaid
+sequenceDiagram
+    participant UI as Frontend (bulk_path.html)
+    participant API as FastAPI (main_bulk.py)
+    participant SVC as BulkAudioService
+    participant GT as Google Translate
+    participant MMS as MMS TTS Model
 
-```bash
-# macOS/Linux
-cp .env.example .env
-# Windows (PowerShell)
-copy .env.example .env
-# edit .env and set GROQ_API_KEY
+    UI->>API: POST /api/process-csv-path { csv_path }
+    API->>SVC: process_csv_data(csv_content)
+    SVC-->>API: preview records
+    API-->>UI: JSON with preview + indices
+
+    UI->>API: POST /api/generate-bulk-audio-path { csv_path, selected_indices?, output_folder? }
+    API->>SVC: merge_audio_components(call_data) for each selected
+    SVC->>GT: translate(variable text)
+    SVC->>MMS: synthesize(variable Hindi audio)
+    SVC-->>API: merged WAV bytes
+    API-->>UI: base64 audio OR saved file paths
 ```
-
-At a minimum you must provide `GROQ_API_KEY`. All other values have sensible defaults and can be left as-is unless you prefer different Groq models/voices.
-
-### 3. Run the development server
-
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Open [http://localhost:8000](http://localhost:8000) in your browser, type an English sentence, and click **Translate & Speak**. The Hindi translation and playable audio will appear beneath the form.
-
-### 4. Run the test suite
-
-```bash
-pytest
-```
-
-Tests mock the Groq service so they run offline and without your API key.
 
 ## Project structure
 
 ```text
 app/
-  main.py              # FastAPI application entrypoint and routes
-  config.py            # Pydantic settings wrapper for environment variables
+  main_bulk.py          # FastAPI routes for translate + bulk-by-path flows
+  config.py             # Pydantic Settings (env) for model/language/sample rate
   services/
-    groq_service.py    # Translation + TTS helper built on Groq APIs
-  templates/index.html # Frontend page
+    translation_tts_service.py  # Google Translate + MMS synthesis service
+    bulk_audio_service.py       # Template generation + dynamic merging pipeline
+  templates/
+    index.html          # Simple demo for Translate API
+    bulk_path.html      # Bulk UI: CSV path + selection + output folder
   static/
-    styles.css         # Styling for the UI
-    script.js          # Browser logic, form handling, audio playback
-.tests/
-  test_app.py          # Pytest coverage for API routes
-requirements.txt        # Python dependencies
-.env.example            # Template for required environment variables
+    bulk_path_script.js # JS for the bulk UI
+requirements.txt        # Dependencies (FastAPI, transformers, torch, numpy/scipy, etc.)
 README.md               # This documentation
 ```
 
-## API reference
+## Setup
 
-### `POST /api/translate`
-
-#### Request body
-
-```json
-{
-  "text": "Hello there"
-}
+```bash
+python -m venv .venv
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 ```
 
-#### Successful response
+Environment variables (see `app/config.py`):
+
+```env
+# .env (all have defaults)
+MMS_MODEL_NAME=facebook/mms-tts-hin
+TARGET_LANGUAGE=hi
+SAMPLE_RATE=16000
+REQUEST_TIMEOUT_SECONDS=60.0
+```
+
+## Run
+
+Two options:
+
+1) Direct script with reload and banners
+
+```bash
+cd app
+python main_bulk.py
+```
+
+2) Uvicorn
+
+```bash
+uvicorn app.main_bulk:app --reload --host 0.0.0.0 --port 8000
+```
+
+Open:
+- Bulk UI: http://localhost:8000/bulk-path
+- API docs: http://localhost:8000/docs
+
+## Using the Bulk UI
+
+- Step 1: Enter the CSV file path (absolute path on your machine)
+- Step 2: Load CSV and select records (or Select All)
+- Step 3: Optionally set Output Folder to save WAV files directly
+- Step 4: Generate Audio
+
+CSV must include columns: `name, company_name, salary, phone_number`.
+
+Example rows:
+
+```csv
+name,company_name,salary,phone_number
+Rahul Sharma,Acme Corp,₹40,000,+91-98765-43210
+Priya Gupta,Innotech,₹55,000,+91-91234-56789
+```
+
+## Backend details
+
+- Translation and TTS are decoupled:
+  - `GoogleTranslateMTTSService` handles English→Hindi translation and synthesis through MMS (via Hugging Face transformers).
+  - `BulkAudioService` loads/creates master templates to avoid regenerating common phrases, generates variable clips, and merges segments with short silences using NumPy/SciPy and SoundFile.
+- Windows-friendly I/O: all intermediate audio is handled in memory (`io.BytesIO`), avoiding file locking issues.
+- Endpoints used by the Bulk UI:
+  - `POST /api/process-csv-path` — Validate CSV path, return preview with indices.
+  - `POST /api/generate-bulk-audio-path` — Generate audio for selected indices; either returns base64 clips or saves WAVs to an output folder.
+
+## API reference
+
+### POST /api/translate
+
+Request
+
+```json
+{ "text": "Hello Rahul, congratulations!" }
+```
+
+Response
 
 ```json
 {
-  "hindi_text": "नमस्ते",
-  "audio_base64": "<base64-encoded wav bytes>",
+  "hindi_text": "नमस्ते राहुल, बधाई हो!",
+  "audio_base64": "<base64-wav>",
   "audio_format": "wav"
 }
 ```
 
-The frontend decodes `audio_base64` into an `audio/<format>` blob for playback.
+### POST /api/process-csv-path
 
-## Customization tips
+Request
 
-- **Swap models / voices:** Set `GROQ_TRANSLATION_MODEL`, `GROQ_TTS_MODEL`, or `GROQ_TTS_VOICE` in your `.env` file.
-- **Change audio format:** Update `GROQ_TTS_FORMAT` to a format supported by the Groq TTS model (e.g., `mp3`). The frontend adapts automatically.
-- **Provider-specific voices:** Supply `GROQ_TTS_PROVIDER` (e.g., `PlayAI`) or append the provider name to the voice (e.g., `Aaliyah-PlayAI`) and the service will shape the payload accordingly.
-- **Reuse the API:** `app.services.groq_service.GroqLLMService` can be injected elsewhere in the codebase for additional workflows.
+```json
+{ "csv_path": "C:\\data\\call_data.csv" }
+```
 
-## Troubleshooting
+Response (preview)
 
-- **`422 Unprocessable Entity`** – The request body is missing the `text` field or it's empty.
-- **`502 Bad Gateway`** – Groq returned an error or timed out. Check your API key, quota, model/voice names, or provider. The backend now surfaces Groq's status code and message to help spot misconfigurations.
-- **CORS issues** – Adjust `allow_origins` in `app.main` if serving the frontend from a different host.
+```json
+{
+  "message": "Successfully processed 2 records",
+  "records": 2,
+  "preview": [
+    { "index": 0, "name": "Rahul Sharma", "company_name": "Acme Corp", "salary": "₹40,000", "phone_number": "+91-98765-43210" },
+    { "index": 1, "name": "Priya Gupta", "company_name": "Innotech", "salary": "₹55,000", "phone_number": "+91-91234-56789" }
+  ]
+}
+```
 
-Happy building! 🇮🇳🗣️
+### POST /api/generate-bulk-audio-path
+
+Request (selected indices + optional output folder)
+
+```json
+{
+  "csv_path": "C:\\data\\call_data.csv",
+  "selected_indices": [0,1],
+  "output_folder": "C:\\output\\audio"
+}
+```
+
+Response (when saving to disk)
+
+```json
+{
+  "total_generated": 2,
+  "message": "Successfully generated 2 audio files",
+  "output_folder": "C:\\output\\audio",
+  "saved_files": [
+    { "name": "Rahul Sharma", "company_name": "Acme Corp", "file_path": "C:\\output\\audio\\Rahul_Sharma_Acme_Corp.wav" },
+    { "name": "Priya Gupta", "company_name": "Innotech", "file_path": "C:\\output\\audio\\Priya_Gupta_Innotech.wav" }
+  ]
+}
+```
+
+Response (when returning base64)
+
+```json
+{
+  "total_generated": 1,
+  "message": "Successfully generated 1 audio files",
+  "audio_files": [
+    { "name": "Rahul Sharma", "company_name": "Acme Corp", "audio_base64": "<base64-wav>" }
+  ]
+}
+```
+
+## Notes & tips
+
+- First-time run will download the MMS model; allow time and disk space.
+- For best quality, ensure your Python environment has a compatible Torch build for your CPU/GPU.
+- If you change `SAMPLE_RATE`, master templates will be regenerated on first use.
+- CSV paths and output paths must be accessible from the server machine.
+
+Happy building! 🇮🇳�
