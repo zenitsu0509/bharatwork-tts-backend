@@ -1,0 +1,124 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f4f6fb;
+  --card-bg: #ffffff;
+  --primary: #1b5e20;
+  --primary-accent: #2e7d32;
+  --text: #1a1a1a;
+  --muted: #6b7280;
+  font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main.container {
+  width: min(720px, 90vw);
+  margin: 48px auto;
+  flex: 1;
+}
+
+header h1 {
+  margin-bottom: 0.5rem;
+  font-size: clamp(1.75rem, 2.4vw, 2.5rem);
+  color: var(--primary);
+}
+
+.subtitle {
+  margin-top: 0;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 16px 24px rgba(16, 24, 40, 0.08);
+  display: grid;
+  gap: 1.5rem;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  resize: vertical;
+  min-height: 120px;
+  font-size: 1rem;
+}
+
+button {
+  margin-top: 1rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-accent));
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 18px rgba(46, 125, 50, 0.25);
+}
+
+.feedback {
+  min-height: 1.5rem;
+  color: var(--muted);
+}
+
+.feedback.error {
+  color: #b91c1c;
+}
+
+.result.hidden {
+  display: none;
+}
+
+.hindi-text {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+audio {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+footer {
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+}
+
+footer code {
+  background: rgba(76, 175, 80, 0.12);
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+}

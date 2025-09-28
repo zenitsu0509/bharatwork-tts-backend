@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BharatWork: English to Hindi Voice</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>BharatWork – English to Hindi Voice</h1>
+        <p class="subtitle">
+          Type an English sentence, get a Hindi translation, and listen to it in natural speech powered by Facebook MMS TTS.
+        </p>
+      </header>
+
+      <section class="card">
+        <form id="translation-form">
+          <label for="english-input">English sentence</label>
+          <textarea id="english-input" name="text" rows="4" placeholder="Enter your sentence here" required></textarea>
+          <button type="submit" id="submit-button">Translate &amp; Speak</button>
+        </form>
+
+        <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+
+        <div id="result" class="result hidden">
+          <h2>Hindi translation</h2>
+          <p id="hindi-output" class="hindi-text"></p>
+
+          <h3>Generated audio</h3>
+          <audio id="tts-audio" controls></audio>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <small>
+        No API keys required! Built with FastAPI, Google Translate &amp; Facebook MMS TTS for Hindi speech synthesis.
+      </small>
+    </footer>
+
+    <script src="/static/script.js" defer></script>
+  </body>
+</html>
