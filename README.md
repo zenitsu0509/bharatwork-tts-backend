@@ -23,27 +23,14 @@ The system uses a modular audio approach:
 
 ```mermaid
 flowchart LR
-    subgraph Frontend
-        A[bulk_path.html UI]
-        JS[bulk_path_script.js]
-    end
-
-    A -->|File path + selections| JS
-    JS -->|POST /api/process-csv-path| B
+    A[bulk_path.html UI] --> JS[bulk_path_script.js]
+    JS -->|POST /api/process-csv-path| B[main_bulk.py routes]
     JS -->|POST /api/generate-bulk-audio-path| B
-
-    subgraph Backend (FastAPI)
-        B[main_bulk.py routes]
-        SVC[BulkAudioService]
-        TTS[GoogleTranslateMTTSService]
-        CFG[config.py Settings]
-    end
-
-    B --> SVC
-    B --> TTS
-    SVC -->|MMS model + tokenizer| MMS[(facebook/mms-tts-hin)]
+    B --> SVC[BulkAudioService]
+    B --> TTS[GoogleTranslateMTTSService]
+    SVC --> MMS[(facebook/mms-tts-hin)]
     SVC --> TSL[Audio templates + merging]
-    TTS -->|deep-translator| GT[Google Translate]
+    TTS --> GT[Google Translate]
 ```
 
 ### Bulk Generation flow (Mermaid)
