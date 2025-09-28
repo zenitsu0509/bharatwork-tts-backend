@@ -1,0 +1,16 @@
+# Core FastAPI dependencies
+fastapi
+uvicorn[standard]
+jinja2
+
+# MMS TTS dependencies
+torch
+transformers
+soundfile
+
+# Translation dependency
+deep-translator
+
+# Development/Testing
+pytest
+pytest-asyncio
