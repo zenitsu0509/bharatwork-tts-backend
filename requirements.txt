@@ -11,6 +11,14 @@ soundfile
 # Translation dependency
 deep-translator
 
+# Audio processing for bulk generation
+pandas
+numpy
+scipy
+
+# File upload support
+python-multipart
+
 # Development/Testing
 pytest
 pytest-asyncio
